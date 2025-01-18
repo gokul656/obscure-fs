@@ -48,6 +48,6 @@ func init() {
 			store = storage.NewFileStore()
 		}
 
-		log.Println("PersistentPreRun complete.")
+		log.Println("Node initialized and ready.")
 	}
 }
