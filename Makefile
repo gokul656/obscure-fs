@@ -1,5 +1,5 @@
 run:
-	go run cmd/main.go 5001
+	go run main.go --port 5001
 
 build:
-	GOOS=darwin go build -o bin/node cmd/main.go
+	CGO_ENABLED=0 go build -o bin/node main.go
