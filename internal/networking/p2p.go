@@ -11,6 +11,7 @@ import (
 	"log"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/gokul656/obscure-fs/internal/hashing"
 	"github.com/gokul656/obscure-fs/internal/storage"
@@ -140,7 +141,7 @@ func (n *Network) RetrieveFile(cid, outputPath string) error {
 		return utils.CopyFile(path, outputPath)
 	}
 
-	log.Printf("file not found locally! searching on the n/w for file: %v", cid)
+	log.Printf("file not found locally! searching on the n/w for file: %s", cid)
 	providers, err := n.FindFile(cid)
 	if err != nil || len(providers) == 0 {
 		return fmt.Errorf("no providers found for CID: %s", cid)
@@ -181,6 +182,11 @@ func (n *Network) RetrieveFile(cid, outputPath string) error {
 
 func (n *Network) ConnectToBootstrapNodes() {
 	for _, addr := range n.bootstrapNodes {
+		// skip self announcement
+		if strings.Contains(addr, n.GetHost().ID().String()) {
+			continue
+		}
+
 		multiAddr, err := multiaddr.NewMultiaddr(addr)
 		if err != nil {
 			log.Printf("Invalid bootstrap address: %s\n", addr)
@@ -222,9 +228,17 @@ func (n *Network) ConnectToPeer(addr string) (err error) {
 }
 
 func (n *Network) AnnounceToPeers(nodeID, address string) {
+	var p = 1
 	peers := n.host.Peerstore().Peers()
-	for i, peerID := range peers {
-		peerAddr := fmt.Sprintf("http://localhost:800%d/nodes/register", i)
+	for _, peerID := range peers {
+
+		// FIXME : skip self announcement & port issue
+		if peerID == n.GetHost().ID() {
+			continue
+		}
+
+		peerAddr := fmt.Sprintf("http://localhost:800%d/nodes/register", p)
+		p++
 		body := Node{
 			ID:       nodeID,
 			Address:  address,
@@ -242,7 +256,7 @@ func (n *Network) AnnounceToPeers(nodeID, address string) {
 }
 
 func (n *Network) StartSimpleProtocol(protocolID protocol.ID) {
-	n.host.SetStreamHandler(protocolID, streamHandler)
+	n.host.SetStreamHandler(protocolID, streamHandler(n.fileStore))
 }
 
 func (n *Network) SendMessage(peerID peer.ID, protocolID protocol.ID, msg string) (err error) {
@@ -261,18 +275,40 @@ func (n *Network) SendMessage(peerID peer.ID, protocolID protocol.ID, msg string
 	return nil
 }
 
-func streamHandler(stream network.Stream) {
-	log.Println("New stream opened")
-	defer stream.Close()
+func streamHandler(fileStore *storage.FileStore) network.StreamHandler {
+	return func(stream network.Stream) {
+		log.Println("New stream opened")
+		defer stream.Close()
 
-	// Handle incoming data
-	buf := make([]byte, 256)
-	n, err := stream.Read(buf)
-	if err != nil {
-		log.Printf("Error reading stream: %s\n", err)
-		return
+		buf := make([]byte, 256)
+		n, err := stream.Read(buf)
+		if err != nil {
+			log.Printf("error reading CID from stream: %s\n", err)
+			return
+		}
+		cid := string(buf[:n])
+		log.Printf("received request for CID: %s\n", cid)
+
+		path, err := fileStore.GetFile(cid)
+		if err != nil {
+			log.Printf("file not found for CID: %s\n", cid)
+			return
+		}
+
+		// Send the file data
+		fileData, err := os.ReadFile(path)
+		if err != nil {
+			log.Printf("failed to read file: %s\n", err)
+			return
+		}
+
+		_, err = stream.Write(fileData)
+		if err != nil {
+			log.Printf("error writing to stream: %s\n", err)
+		} else {
+			log.Printf("file sent successfully for CID: %s\n", cid)
+		}
 	}
-	log.Printf("Received message: %s\n", string(buf[:n]))
 }
 
 func (n *Network) Shutdown() error {

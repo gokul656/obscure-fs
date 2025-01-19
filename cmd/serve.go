@@ -93,7 +93,13 @@ var serveCmd = &cobra.Command{
 		router.GET("/files/:cid", func(c *gin.Context) {
 			cid := c.Param("cid")
 
-			tempFilePath := fmt.Sprintf("./temp/%s", cid)
+			tempDir := fmt.Sprintf("./temp/%s", network.GetHost().ID())
+			tempFilePath := fmt.Sprintf("%s/%s", tempDir, cid)
+
+			if err := os.MkdirAll(tempDir, 0755); err != nil {
+				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create temp directory"})
+				return
+			}
 
 			err := network.RetrieveFile(cid, tempFilePath)
 			if err != nil {

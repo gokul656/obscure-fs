@@ -20,8 +20,8 @@ var (
 	pkey       string
 
 	bootstrapNodes = []string{
-		"/ip4/127.0.0.1/tcp/5001/p2p/12D3KooWPvMQD2LhyeqGUsNK7GaJzA8N9XEvrbxqLPq21oBdUbfm",
-		"/ip4/127.0.0.1/tcp/5002/p2p/12D3KooWGBGQhc2oMoRUBkKHHGrqQYBskTXMmWAgcwfSiLbAtE1g",
+		"/ip4/127.0.0.1/tcp/5001/p2p/QmeoE7T4kja3rUxrzSkFi561BxfAA3phWxFRQvAyJqpZou",
+		"/ip4/127.0.0.1/tcp/5002/p2p/QmQnBnDLfbfrtCfG6HYxNek6PcG1hKLGAkDACF857Q2fvs",
 	}
 )
 
