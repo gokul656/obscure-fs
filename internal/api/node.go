@@ -1,11 +1,42 @@
 package api
 
-import "github.com/gin-gonic/gin"
+import (
+	"context"
+	"net/http"
 
-func RegisterNodeHandler(c *gin.Context) {
+	"github.com/gin-gonic/gin"
+	"github.com/gokul656/obscure-fs/internal/networking"
+	"github.com/gokul656/obscure-fs/internal/storage"
+)
 
+type NodeController struct {
+	ctx      context.Context
+	store    *storage.FileStore
+	registry *networking.NodeRegistry
+	network  *networking.Network
 }
 
-func GetAllNodesHandler(c *gin.Context) {
+func NewNodeController(ctx context.Context, store *storage.FileStore, registry *networking.NodeRegistry, network *networking.Network) *NodeController {
+	return &NodeController{
+		ctx:      ctx,
+		store:    store,
+		registry: registry,
+		network:  network,
+	}
+}
 
+func (nc *NodeController) RegisterNodeHandler(c *gin.Context) {
+	var node networking.Node
+	if err := c.ShouldBindJSON(&node); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
+		return
+	}
+
+	nc.registry.RegisterNode(node)
+	c.JSON(http.StatusOK, gin.H{"message": "Node registered successfully", "node_id": node.ID})
+}
+
+func (nc *NodeController) GetAllNodesHandler(c *gin.Context) {
+	nodes := nc.registry.GetAllNodes()
+	c.JSON(http.StatusOK, gin.H{"nodes": nodes})
 }

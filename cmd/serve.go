@@ -3,11 +3,11 @@ package cmd
 import (
 	"fmt"
 	"log"
-	"net/http"
 	"os"
 	"os/signal"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gokul656/obscure-fs/internal/api"
 	"github.com/gokul656/obscure-fs/internal/networking"
 	"github.com/gokul656/obscure-fs/internal/storage"
 	"github.com/gokul656/obscure-fs/utils"
@@ -38,12 +38,13 @@ var serveCmd = &cobra.Command{
 			network.AnnounceToPeers(network.GetHost().ID().String(), fmt.Sprintf("/ip4/127.0.0.1/tcp/%d", listenPort))
 		}
 
+		if registry == nil {
+			registry = networking.NewNodeRegistry()
+		}
+
 		log.Printf("Node is listening on port %d. Press Ctrl+C to stop.\n", listenPort)
 
-		registry := networking.NewNodeRegistry()
 		router := gin.Default()
-		gin.SetMode(gin.ReleaseMode)
-
 		router.Use(func(c *gin.Context) {
 			c.Writer.Header().Set("Access-Control-Allow-Origin", "*")
 			c.Writer.Header().Set("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
@@ -51,64 +52,16 @@ var serveCmd = &cobra.Command{
 			c.Next()
 		})
 
-		router.POST("/nodes/register", func(c *gin.Context) {
-			var node networking.Node
-			if err := c.ShouldBindJSON(&node); err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request body"})
-				return
-			}
+		nodeController := api.NewNodeController(ctx, store, registry, network)
 
-			registry.RegisterNode(node)
-			c.JSON(http.StatusOK, gin.H{"message": "Node registered successfully", "node_id": node.ID})
-		})
+		nodes := router.Group("/nodes")
+		nodes.POST("/register", nodeController.RegisterNodeHandler)
+		nodes.GET("/", nodeController.GetAllNodesHandler)
 
-		router.GET("/nodes", func(c *gin.Context) {
-			nodes := registry.GetAllNodes()
-			c.JSON(http.StatusOK, gin.H{"nodes": nodes})
-		})
-
-		router.POST("/files/upload", func(c *gin.Context) {
-			file, err := c.FormFile("file")
-			if err != nil {
-				c.JSON(http.StatusBadRequest, gin.H{"error": "Failed to upload file"})
-				return
-			}
-
-			uploadDir := "./uploads"
-			filePath := fmt.Sprintf("%s/%s", uploadDir, file.Filename)
-			if err := c.SaveUploadedFile(file, filePath); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to save file"})
-				return
-			}
-
-			cid, err := network.ShareFile(filePath)
-			if err != nil {
-				return
-			}
-
-			log.Printf("file uploaded: %s (CID: %s)\n", filePath, cid)
-			c.JSON(http.StatusOK, gin.H{"message": "File uploaded successfully", "cid": cid})
-		})
-
-		router.GET("/files/:cid", func(c *gin.Context) {
-			cid := c.Param("cid")
-
-			tempDir := fmt.Sprintf("./temp/%s", network.GetHost().ID())
-			tempFilePath := fmt.Sprintf("%s/%s", tempDir, cid)
-
-			if err := os.MkdirAll(tempDir, 0755); err != nil {
-				c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create temp directory"})
-				return
-			}
-
-			err := network.RetrieveFile(cid, tempFilePath)
-			if err != nil {
-				c.JSON(http.StatusNotFound, gin.H{"error": "File not found"})
-				return
-			}
-
-			c.File(tempFilePath)
-		})
+		files := router.Group("/files")
+		files.GET("/", nodeController.GetFilesHandler)
+		files.POST("/upload", nodeController.FileUploadsHandler)
+		files.GET("/:cid", nodeController.GetFileHandler)
 
 		go func() {
 			if err := router.Run(fmt.Sprintf(":%d", apiPort)); err != nil {

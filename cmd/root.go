@@ -14,6 +14,7 @@ var (
 	rootCmd    = &cobra.Command{Use: "obscure-fs"}
 	network    *networking.Network // Shared network instance
 	store      *storage.FileStore  // Shared storage instance
+	registry   *networking.NodeRegistry
 	ctx        = context.Background()
 	listenPort int
 	apiPort    int
