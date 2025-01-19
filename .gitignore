@@ -26,3 +26,8 @@ go.work.sum
 
 # builds
 bin/
+
+# misc
+keys/
+temp/
+uploads/

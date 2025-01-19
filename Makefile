@@ -1,5 +1,8 @@
-run:
-	go run main.go --port 5001
+run-bootstrap:
+	go run main.go serve --port 5001 --api-port 8001 --pkey keys/boostrap-1-privatekey.pem
+
+run-client:
+	go run main.go serve --port 5003 --api-port 8003  --pkey keys/boostrap-2-privatekey.pem
 
 build:
-	CGO_ENABLED=0 go build -o bin/node main.go
+	CGO_ENABLED=0 go build .

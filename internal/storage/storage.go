@@ -14,6 +14,7 @@ type FileStore struct {
 func NewFileStore() *FileStore {
 	return &FileStore{
 		files: make(map[string]string),
+		mu:    sync.RWMutex{},
 	}
 }
 
@@ -27,6 +28,7 @@ func (fs *FileStore) StoreFile(cid string, path string) error {
 func (fs *FileStore) GetFile(cid string) (string, error) {
 	fs.mu.RLock()
 	defer fs.mu.RUnlock()
+
 	path, exists := fs.files[cid]
 	if !exists {
 		return "", fmt.Errorf("file not found for CID: %s", cid)

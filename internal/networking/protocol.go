@@ -12,7 +12,7 @@ import (
 	"github.com/libp2p/go-libp2p/core/protocol"
 )
 
-func (n *Netowrk) RequestFile(peerID peer.ID, protocolID protocol.ID, cid string) error {
+func (n *Network) RequestFile(peerID peer.ID, protocolID protocol.ID, cid string) error {
 	stream, err := n.host.NewStream(n.ctx, peerID, protocolID)
 	if err != nil {
 		return fmt.Errorf("failed to create stream: %w", err)
