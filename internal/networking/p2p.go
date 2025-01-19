@@ -277,36 +277,54 @@ func (n *Network) SendMessage(peerID peer.ID, protocolID protocol.ID, msg string
 
 func streamHandler(fileStore *storage.FileStore) network.StreamHandler {
 	return func(stream network.Stream) {
-		log.Println("New stream opened")
+		log.Println("new stream opened")
 		defer stream.Close()
 
 		buf := make([]byte, 256)
 		n, err := stream.Read(buf)
 		if err != nil {
-			log.Printf("error reading CID from stream: %s\n", err)
-			return
-		}
-		cid := string(buf[:n])
-		log.Printf("received request for CID: %s\n", cid)
-
-		path, err := fileStore.GetFile(cid)
-		if err != nil {
-			log.Printf("file not found for CID: %s\n", cid)
+			log.Printf("error reading from stream: %s\n", err)
 			return
 		}
 
-		// Send the file data
-		fileData, err := os.ReadFile(path)
-		if err != nil {
-			log.Printf("failed to read file: %s\n", err)
-			return
-		}
+		command := string(buf[:n])
+		log.Printf("received command: %s\n", command)
 
-		_, err = stream.Write(fileData)
-		if err != nil {
-			log.Printf("error writing to stream: %s\n", err)
-		} else {
-			log.Printf("file sent successfully for CID: %s\n", cid)
+		switch command {
+		case "list_files":
+			files := fileStore.ListFiles()
+			response, err := json.Marshal(files)
+			if err != nil {
+				log.Printf("failed to encode file list: %s\n", err)
+				return
+			}
+			_, err = stream.Write(response)
+			if err != nil {
+				log.Printf("error writing file list to stream: %s\n", err)
+			} else {
+				log.Println("file list sent successfully")
+			}
+
+		default:
+			cid := command
+			path, err := fileStore.GetFile(cid)
+			if err != nil {
+				log.Printf("file not found for CID: %s\n", cid)
+				return
+			}
+
+			fileData, err := os.ReadFile(path)
+			if err != nil {
+				log.Printf("failed to read file: %s\n", err)
+				return
+			}
+
+			_, err = stream.Write(fileData)
+			if err != nil {
+				log.Printf("error writing file to stream: %s\n", err)
+			} else {
+				log.Printf("file sent successfully for CID: %s\n", cid)
+			}
 		}
 	}
 }

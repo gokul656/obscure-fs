@@ -66,7 +66,6 @@ func (n *NodeController) GetFilesHandler(c *gin.Context) {
 	// Fetch files available on the network
 	networkPeers := n.network.GetHost().Peerstore().Peers()
 	for _, peerID := range networkPeers {
-		// Skip self
 		if peerID == n.network.GetHost().ID() {
 			continue
 		}
