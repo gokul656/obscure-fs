@@ -1,4 +1,4 @@
-# File Sharing Network
+# ObscureFS
 
 This project is a decentralized file-sharing network built using LibP2P. It allows nodes to share and retrieve files, discover other peers, and list available files for download.
 
