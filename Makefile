@@ -4,5 +4,8 @@ run-bootstrap:
 run-client:
 	go run main.go serve --port 5003 --api-port 8003  --pkey keys/boostrap-2-privatekey.pem
 
+tests:
+	go test ./tests -run TestCodec
+
 build:
 	CGO_ENABLED=0 go build .

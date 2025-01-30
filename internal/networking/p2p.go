@@ -39,29 +39,25 @@ type Network struct {
 
 func NewNetwork(ctx context.Context, port int, pkey string, bootstrapNodes []string, fs *storage.FileStore) *Network {
 	var host host.Host
+	addresses := libp2p.ListenAddrStrings(
+		fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port),
+		fmt.Sprintf("/ip6/::/tcp/%d", port),
+	)
+
 	privKey, err := LoadPrivateKey(pkey)
 	if err == nil {
-		host, err = libp2p.New(
-			libp2p.Identity(privKey),
-			libp2p.ListenAddrStrings(
-				fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port),
-				fmt.Sprintf("/ip6/::/tcp/%d", port),
-			),
-		)
+		host, err = libp2p.New(libp2p.Identity(privKey), addresses)
 	} else {
-		log.Printf("unable to load PKEY %v, error: %v", pkey, err)
-		host, err = libp2p.New(
-			libp2p.ListenAddrStrings(
-				fmt.Sprintf("/ip4/0.0.0.0/tcp/%d", port),
-				fmt.Sprintf("/ip6/::/tcp/%d", port),
-			),
-		)
+		log.Printf("unable to load PKEY %v, error: %v\n", pkey, err)
+		log.Println("generate new keypairs...")
+		host, err = libp2p.New(addresses)
 	}
 
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	// creating new Distributed Hash Table
 	dhtInstance, err := dual.New(ctx, host, dual.DHTOption())
 	if err != nil {
 		log.Fatalln(err)
@@ -219,8 +215,8 @@ func (n *Network) ConnectToPeer(addr string) (err error) {
 	}
 
 	n.host.Peerstore().AddAddr(peerInfo.ID, mulAddr, peerstore.PermanentAddrTTL)
-	if err := n.host.Connect(n.ctx, *peerInfo); err != nil {
-		return err
+	if err = n.host.Connect(n.ctx, *peerInfo); err != nil {
+		return
 	}
 
 	log.Printf("connected to peer: %s\n", addr)
